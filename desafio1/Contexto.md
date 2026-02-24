@@ -2,7 +2,7 @@
 ## Integrantes:
 - Misael Del Carpio Gamboa, 10017754
 - Juan De Dios Cruz Copa, 13789037
-- Maximiliano Gomez Mallo, 1480221
+- Maximiliano Gomez Mallo, 14480221
 
 ## 1. Contexto: ¿Qué es un crédito amortizable?
 

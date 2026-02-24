@@ -284,6 +284,64 @@
     margin-left: 8px;
     vertical-align: middle;
   }
+  /* ── THEORY CARDS ── */
+  .theory-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  @media (max-width: 900px) { .theory-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 500px) { .theory-grid { grid-template-columns: 1fr; } }
+
+  .theory-card {
+    background: var(--card);
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .theory-card--wide {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+    background: #13182299;
+  }
+  .theory-icon {
+    font-size: 1.4rem;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid #e8c54730;
+    background: #e8c54710;
+  }
+  .theory-body { display: flex; flex-direction: column; gap: 8px; }
+  .theory-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1rem;
+    color: #fff;
+  }
+  .theory-desc {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .theory-desc em { color: var(--text); font-style: normal; }
+  .theory-formula {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--accent2);
+    background: var(--surface);
+    border-left: 2px solid var(--accent2);
+    padding: 8px 12px;
+    margin-top: 4px;
+  }
+
 </style>
 </head>
 <body>
@@ -311,9 +369,61 @@
 
 <main>
 
+  <!-- TEORÍA -->
+  <section class="fade-up">
+    <p class="section-title">01 — Marco teórico</p>
+    <div class="theory-grid">
+
+      <div class="theory-card">
+        <div class="theory-icon">▲</div>
+        <div class="theory-body">
+          <div class="theory-title">Error Absoluto</div>
+          <div class="theory-desc">Mide la diferencia en las mismas unidades del problema entre el valor teórico y el valor real obtenido. En finanzas se expresa en pesos, indicando <em>cuánto dinero</em> separa al modelo de la realidad.</div>
+          <div class="theory-formula">Ea = | V<sub>teórico</sub> − V<sub>real</sub> |</div>
+        </div>
+      </div>
+
+      <div class="theory-card">
+        <div class="theory-icon">%</div>
+        <div class="theory-body">
+          <div class="theory-title">Error Relativo</div>
+          <div class="theory-desc">Expresa el error absoluto como proporción del valor teórico. Permite evaluar <em>qué tan significativo</em> es el error en contexto, independientemente de la magnitud del crédito.</div>
+          <div class="theory-formula">Er = ( Ea / |V<sub>teórico</sub>| ) × 100%</div>
+        </div>
+      </div>
+
+      <div class="theory-card">
+        <div class="theory-icon">∑</div>
+        <div class="theory-body">
+          <div class="theory-title">Propagación de Errores</div>
+          <div class="theory-desc">Cada redondeo introduce un pequeño error. En cálculos en cadena como la amortización, estos errores se <em>acumulan mes a mes</em>, creciendo progresivamente hasta el final del plazo.</div>
+          <div class="theory-formula">E<sub>total</sub> ≈ E<sub>1</sub> + E<sub>2</sub> + · · · + E<sub>n</sub></div>
+        </div>
+      </div>
+
+      <div class="theory-card">
+        <div class="theory-icon">$</div>
+        <div class="theory-body">
+          <div class="theory-title">Crédito Amortizable</div>
+          <div class="theory-desc">El <em>saldo teórico</em> se obtiene de la fórmula exacta. El <em>saldo real</em> se calcula mes a mes con redondeos al centavo, generando una discrepancia que el banco gestiona al final del plazo.</div>
+          <div class="theory-formula">C = P · i(1+i)ⁿ / [(1+i)ⁿ − 1]</div>
+        </div>
+      </div>
+
+      <div class="theory-card theory-card--wide">
+        <div class="theory-icon">⚠</div>
+        <div class="theory-body">
+          <div class="theory-title">¿Por qué importa en finanzas?</div>
+          <div class="theory-desc">Un error de $0.19 en un crédito de $15,000 parece insignificante. Pero un banco con 100,000 créditos activos acumula <em>$19,000 de descalce contable</em>. A mayor capital y plazo, mayor propagación. El análisis de errores permite anticipar, controlar y corregir estas discrepancias antes de que se vuelvan problemas sistémicos.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
   <!-- KPIs -->
   <section class="fade-up">
-    <p class="section-title">01 — Indicadores clave</p>
+    <p class="section-title">02 — Indicadores clave</p>
     <div class="kpi-grid">
       <div class="kpi">
         <span class="kpi-label">Cuota exacta</span>
@@ -350,7 +460,7 @@
 
   <!-- FÓRMULAS -->
   <section class="fade-up">
-    <p class="section-title">02 — Fórmulas del modelo</p>
+    <p class="section-title">03 — Fórmulas del modelo</p>
     <div class="formula-strip">
       <div>
         <span class="f">C</span> = P · i(1+i)ⁿ / [(1+i)ⁿ − 1]
@@ -373,7 +483,7 @@
 
   <!-- CHARTS ROW 1 -->
   <section class="fade-up">
-    <p class="section-title">03 — Evolución de saldos y errores</p>
+    <p class="section-title">04 — Evolución de saldos y errores</p>
     <div class="chart-grid">
 
       <div class="chart-card full">
@@ -413,7 +523,7 @@
 
   <!-- TABLE -->
   <section class="fade-up">
-    <p class="section-title">04 — Tabla de amortización completa (30 datos)</p>
+    <p class="section-title">05 — Tabla de amortización completa (30 datos)</p>
     <div class="table-wrap">
       <table>
         <thead>
