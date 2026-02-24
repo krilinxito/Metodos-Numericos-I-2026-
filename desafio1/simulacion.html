@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis de Errores — Amortización</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:       #0b0e14;
+    --surface:  #12161f;
+    --card:     #181d28;
+    --border:   #232a38;
+    --accent:   #e8c547;
+    --accent2:  #5bc8f5;
+    --accent3:  #f56b6b;
+    --text:     #dde2ed;
+    --muted:    #6b7591;
+    --green:    #4ade80;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, #ffffff04 39px, #ffffff04 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, #ffffff04 39px, #ffffff04 40px);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative; z-index: 1;
+    padding: 60px 48px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-end; justify-content: space-between;
+    flex-wrap: wrap; gap: 24px;
+  }
+
+  .header-left h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    line-height: 1.05;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+  .header-left h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .header-left p {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .badge span { color: var(--accent); }
+
+  /* ── MAIN ── */
+  main {
+    position: relative; z-index: 1;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+    display: flex; flex-direction: column; gap: 48px;
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-title::after {
+    content: ''; flex: 1;
+    height: 1px; background: var(--border);
+  }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1px;
+    border: 1px solid var(--border);
+    background: var(--border);
+  }
+  .kpi {
+    background: var(--card);
+    padding: 28px 24px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .kpi-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+  .kpi-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+  .kpi-value.accent  { color: var(--accent); }
+  .kpi-value.accent2 { color: var(--accent2); }
+  .kpi-value.accent3 { color: var(--accent3); }
+  .kpi-value.green   { color: var(--green); }
+  .kpi-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── CHART CARDS ── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 800px) { .chart-grid { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 28px;
+    position: relative;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+
+  .chart-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.15rem;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .chart-subtitle {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+    font-family: 'DM Mono', monospace;
+  }
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-card.full .chart-wrap { height: 300px; }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+  }
+  thead th {
+    background: var(--surface);
+    padding: 12px 16px;
+    text-align: right;
+    color: var(--muted);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: center; }
+  tbody tr {
+    border-bottom: 1px solid #1a1f2c;
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: #1e2436; }
+  tbody td {
+    padding: 10px 16px;
+    text-align: right;
+    color: var(--text);
+  }
+  tbody td:first-child {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.7rem;
+  }
+  .ea-cell { color: var(--accent); }
+  .er-cell { color: var(--accent2); }
+  .neg     { color: var(--accent3); }
+
+  /* ── ERROR BAR INLINE ── */
+  .bar-wrap { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .bar-bg {
+    width: 80px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .bar-fill {
+    height: 100%; border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    transition: width 0.4s ease;
+  }
+
+
+
+  /* ── FORMULA BOX ── */
+  .formula-strip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 20px 24px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text);
+    line-height: 2;
+    display: flex; flex-wrap: wrap; gap: 32px;
+  }
+  .formula-strip .f { color: var(--accent); }
+  .formula-strip .v { color: var(--accent2); }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative; z-index: 1;
+    text-align: center;
+    padding: 32px;
+    border-top: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  /* ── ANIMATIONS ── */
+  .fade-up {
+    opacity: 0; transform: translateY(20px);
+    animation: fadeUp 0.6s ease forwards;
+  }
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up:nth-child(1) { animation-delay: 0.05s; }
+  .fade-up:nth-child(2) { animation-delay: 0.15s; }
+  .fade-up:nth-child(3) { animation-delay: 0.25s; }
+  .fade-up:nth-child(4) { animation-delay: 0.35s; }
+  .fade-up:nth-child(5) { animation-delay: 0.45s; }
+
+  .tag {
+    display: inline-block;
+    background: #e8c54718;
+    border: 1px solid #e8c54740;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 2px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Análisis de <em>Errores</em><br>Numéricos</h1>
+    <p>Amortización de Crédito · Propagación de Redondeos</p>
+  </div>
+  <div class="badges">
+    <div class="badge">Capital <span>$15,000</span></div>
+    <div class="badge">Tasa <span>1.5% / mes</span></div>
+    <div class="badge">Plazo <span>30 meses</span></div>
+    <div class="badge">Cuota <span>$624.59</span></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPIs -->
+  <section class="fade-up">
+    <p class="section-title">01 — Indicadores clave</p>
+    <div class="kpi-grid">
+      <div class="kpi">
+        <span class="kpi-label">Cuota exacta</span>
+        <span class="kpi-value">$624.5878</span>
+        <span class="kpi-sub">sin redondeo alguno</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Cuota redondeada</span>
+        <span class="kpi-value accent">$624.59</span>
+        <span class="kpi-sub">lo que el banco cobra</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Error por cuota</span>
+        <span class="kpi-value accent2">$0.002176</span>
+        <span class="kpi-sub">diferencia en cada pago</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Error acumulado total</span>
+        <span class="kpi-value accent3">$0.19</span>
+        <span class="kpi-sub">residuo al mes 30</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Ea máximo (mes 30)</span>
+        <span class="kpi-value accent3">$0.19</span>
+        <span class="kpi-sub">error absoluto máximo</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Er máximo</span>
+        <span class="kpi-value green">0.029%</span>
+        <span class="kpi-sub">error relativo máximo</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- FÓRMULAS -->
+  <section class="fade-up">
+    <p class="section-title">02 — Fórmulas del modelo</p>
+    <div class="formula-strip">
+      <div>
+        <span class="f">C</span> = P · i(1+i)ⁿ / [(1+i)ⁿ − 1]
+        <br><span style="color:var(--muted);font-size:0.7rem">Cuota mensual fija</span>
+      </div>
+      <div>
+        <span class="f">Sₖ</span> = P · [(1+i)ⁿ − (1+i)ᵏ] / [(1+i)ⁿ − 1]
+        <br><span style="color:var(--muted);font-size:0.7rem">Saldo teórico exacto al mes k</span>
+      </div>
+      <div>
+        <span class="v">Ea</span> = |Sₖ − Sₖ*|
+        <br><span style="color:var(--muted);font-size:0.7rem">Error absoluto (pesos)</span>
+      </div>
+      <div>
+        <span class="v">Er</span> = |Sₖ − Sₖ*| / Sₖ × 100
+        <br><span style="color:var(--muted);font-size:0.7rem">Error relativo (%)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHARTS ROW 1 -->
+  <section class="fade-up">
+    <p class="section-title">03 — Evolución de saldos y errores</p>
+    <div class="chart-grid">
+
+      <div class="chart-card full">
+        <div class="chart-title">Saldo Teórico vs. Saldo Real</div>
+        <div class="chart-subtitle">Los 30 meses de amortización — la diferencia es imperceptible a esta escala</div>
+        <div class="chart-wrap">
+          <canvas id="chartSaldos"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Error Absoluto <span class="tag">Ea ($)</span></div>
+        <div class="chart-subtitle">Crece mes a mes por acumulación de redondeos</div>
+        <div class="chart-wrap">
+          <canvas id="chartEa"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Error Relativo <span class="tag">Er (%)</span></div>
+        <div class="chart-subtitle">Muy pequeño al inicio, se dispara al final</div>
+        <div class="chart-wrap">
+          <canvas id="chartEr"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card full">
+        <div class="chart-title">Composición del pago mensual</div>
+        <div class="chart-subtitle">Intereses vs. abono a capital en cada período</div>
+        <div class="chart-wrap">
+          <canvas id="chartStack"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- TABLE -->
+  <section class="fade-up">
+    <p class="section-title">04 — Tabla de amortización completa (30 datos)</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th>Pago observado</th>
+            <th>Interés</th>
+            <th>Abono capital</th>
+            <th>Saldo real</th>
+            <th>Saldo teórico</th>
+            <th>Ea ($)</th>
+            <th>Er (%)</th>
+            <th>Propagación</th>
+          </tr>
+        </thead>
+        <tbody id="tablaBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+
+
+</main>
+
+<footer>
+  Análisis Numérico · Amortización de Créditos · Errores de Redondeo y Propagación
+</footer>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────
+const P = 15000, rate = 0.015, n = 30;
+
+const pagosObs = [
+  624.59,624.59,624.59,624.60,624.59,
+  624.59,624.60,624.59,624.59,624.60,
+  624.59,624.59,624.60,624.59,624.59,
+  624.60,624.59,624.59,624.60,624.59,
+  624.59,624.60,624.59,624.59,624.60,
+  624.59,624.59,624.60,624.59,624.60,
+];
+
+function saldoTeorico(k) {
+  return P * (Math.pow(1+rate,n) - Math.pow(1+rate,k)) / (Math.pow(1+rate,n) - 1);
+}
+
+// Build amortization data
+const rows = [];
+let saldoReal = P;
+const maxEa = 0.19;
+
+for (let k = 1; k <= n; k++) {
+  const pago = pagosObs[k-1];
+  const interes = Math.round(saldoReal * rate * 100) / 100;
+  const abono   = Math.round((pago - interes) * 100) / 100;
+  saldoReal     = Math.round((saldoReal - abono) * 100) / 100;
+  const st      = saldoTeorico(k);
+  const ea      = Math.abs(st - saldoReal);
+  const er      = st > 0.01 ? (ea / st * 100) : null;
+  rows.push({ k, pago, interes, abono, saldoReal, st, ea, er });
+}
+
+// ── CHART DEFAULTS ───────────────────────────────────────────────────
+Chart.defaults.color = '#6b7591';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const gridColor = '#232a38';
+const months = rows.map(r => `M${r.k}`);
+
+function baseOptions(yLabel) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: {
+      backgroundColor: '#12161f', borderColor: '#232a38', borderWidth: 1,
+      titleColor: '#dde2ed', bodyColor: '#6b7591',
+      callbacks: { label: ctx => ` ${ctx.dataset.label || ''}: ${ctx.parsed.y}` }
+    }},
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { maxRotation: 0 } },
+      y: { grid: { color: gridColor }, title: { display: !!yLabel, text: yLabel, color: '#6b7591' } }
+    }
+  };
+}
+
+// 1. Saldos
+new Chart(document.getElementById('chartSaldos'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [
+      {
+        label: 'Saldo Teórico',
+        data: rows.map(r => r.st.toFixed(4)),
+        borderColor: '#5bc8f5', borderWidth: 2,
+        pointRadius: 0, tension: 0.3,
+      },
+      {
+        label: 'Saldo Real',
+        data: rows.map(r => r.saldoReal),
+        borderColor: '#e8c547', borderWidth: 1.5,
+        borderDash: [4,3],
+        pointRadius: 0, tension: 0.3,
+      }
+    ]
+  },
+  options: {
+    ...baseOptions('Saldo ($)'),
+    plugins: {
+      legend: { display: true, labels: { color: '#6b7591', boxWidth: 20, font: { size: 11 } } },
+      tooltip: { mode: 'index', intersect: false,
+        backgroundColor: '#12161f', borderColor: '#232a38', borderWidth: 1,
+        titleColor: '#dde2ed', bodyColor: '#aab2c8',
+      }
+    }
+  }
+});
+
+// 2. Error Absoluto
+new Chart(document.getElementById('chartEa'), {
+  type: 'bar',
+  data: {
+    labels: months,
+    datasets: [{
+      label: 'Ea ($)',
+      data: rows.map(r => r.ea.toFixed(4)),
+      backgroundColor: rows.map((r,i) => `rgba(232,197,71,${0.3 + i/n*0.7})`),
+      borderColor: '#e8c547', borderWidth: 1,
+      borderRadius: 2,
+    }]
+  },
+  options: baseOptions('Ea ($)')
+});
+
+// 3. Error Relativo
+new Chart(document.getElementById('chartEr'), {
+  type: 'line',
+  data: {
+    labels: months.slice(0, 29),
+    datasets: [{
+      label: 'Er (%)',
+      data: rows.slice(0,29).map(r => r.er ? r.er.toFixed(5) : 0),
+      borderColor: '#5bc8f5', borderWidth: 2,
+      pointRadius: 3, pointBackgroundColor: '#5bc8f5',
+      fill: true,
+      backgroundColor: 'rgba(91,200,245,0.08)',
+      tension: 0.4,
+    }]
+  },
+  options: baseOptions('Er (%)')
+});
+
+// 4. Stacked bar
+new Chart(document.getElementById('chartStack'), {
+  type: 'bar',
+  data: {
+    labels: months,
+    datasets: [
+      {
+        label: 'Interés',
+        data: rows.map(r => r.interes),
+        backgroundColor: 'rgba(245,107,107,0.75)',
+        borderRadius: 2,
+      },
+      {
+        label: 'Abono a Capital',
+        data: rows.map(r => r.abono),
+        backgroundColor: 'rgba(74,222,128,0.65)',
+        borderRadius: 2,
+      }
+    ]
+  },
+  options: {
+    ...baseOptions('$'),
+    plugins: {
+      legend: { display: true, labels: { color: '#6b7591', boxWidth: 14, font: { size: 11 } } },
+      tooltip: { mode: 'index', intersect: false,
+        backgroundColor: '#12161f', borderColor: '#232a38', borderWidth: 1,
+        titleColor: '#dde2ed', bodyColor: '#aab2c8'
+      }
+    },
+    scales: {
+      x: { stacked: true, grid: { color: gridColor } },
+      y: { stacked: true, grid: { color: gridColor } }
+    }
+  }
+});
+
+// ── TABLE ────────────────────────────────────────────────────────────
+const tbody = document.getElementById('tablaBody');
+rows.forEach(r => {
+  const barW = Math.round((r.ea / maxEa) * 100);
+  const erStr = r.er !== null ? r.er.toFixed(5) + '%' : '<span class="muted">N/A</span>';
+  tbody.innerHTML += `
+    <tr>
+      <td>${r.k}</td>
+      <td>$${r.pago.toFixed(2)}</td>
+      <td>$${r.interes.toFixed(2)}</td>
+      <td>$${r.abono.toFixed(2)}</td>
+      <td class="${r.saldoReal < 0 ? 'neg' : ''}">$${r.saldoReal.toFixed(2)}</td>
+      <td>$${r.st.toFixed(4)}</td>
+      <td class="ea-cell">$${r.ea.toFixed(4)}</td>
+      <td class="er-cell">${erStr}</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill" style="width:${barW}%"></div></div>
+        </div>
+      </td>
+    </tr>`;
+});
+
+
+</script>
+</body>
+</html>
